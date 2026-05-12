@@ -19,41 +19,25 @@ RUN pnpm install --frozen-lockfile
 # Copy source files
 COPY . .
 
-# Build the application in production mode
+# Build the application
 ENV NODE_ENV=production
 RUN pnpm run build
-
-# Determine build output directory and prepare it for copying
-# Nitro outputs to .output/public, Vite outputs to dist
-RUN if [ -d /app/.output/public ]; then \
-      echo "Using Nitro output: .output/public"; \
-      cp -r /app/.output/public /app/build-output; \
-    elif [ -d /app/dist ]; then \
-      echo "Using Vite output: dist"; \
-      cp -r /app/dist /app/build-output; \
-    else \
-      echo "ERROR: No build output found!"; \
-      ls -la /app/; \
-      exit 1; \
-    fi
 
 # Production stage
 FROM node:22-alpine
 
 WORKDIR /app
-# Copy built assets from builder
-COPY --from=builder /app/build-output /usr/share/nginx/html
 
-# Copy built output from builder
+# Copy the Nitro output from the builder stage
+# Nitro builds the server into .output
 COPY --from=builder /app/.output ./.output
 
-# Expose port
-EXPOSE 3000
-
-# Set the port for Nitro
-ENV NODE_ENV=production
-ENV PORT=3000
+# Render uses port 10000 by default for free tier services
+ENV PORT=10000
 ENV HOST=0.0.0.0
+ENV NODE_ENV=production
 
-# Run the Nitro server
+EXPOSE 10000
+
+# Start the Nitro server
 CMD ["node", ".output/server/index.mjs"]
